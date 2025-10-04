@@ -1,5 +1,8 @@
 from pydantic import BaseModel
+from typing import Optional
 
-class BookBase(BaseModel):
+class Book(BaseModel):
     title: str
-    author: str
+    author: Optional[str]
+    year: Optional[int]
+    cover: Optional[str]
