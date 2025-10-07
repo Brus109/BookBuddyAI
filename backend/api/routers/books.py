@@ -2,18 +2,19 @@ from typing import List
 from fastapi import APIRouter, Depends, requests, Query
 from services.book_service import BookService
 from core.security import get_current_user
-from ..schemas.books import Book
+from ..schemas.books import Book, SaveBook
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
-@router.get("/")
-async def list_books(_=Depends(get_current_user)):
-    return "test" 
-    #BookService.get_all_books()
+@router.get("/get_favorites", response_model = List[SaveBook])
+async def list_books(user=Depends(get_current_user)):
+    user_id = user.id
+    return BookService.get_all_books(user_id)
 
-@router.post("/")
-async def add_book(book_data: dict, _=Depends(get_current_user)):
-    return BookService.create_book(book_data)
+@router.post("/save")
+async def add_book(book_data: SaveBook, user=Depends(get_current_user)):
+    user_id = user.id
+    return BookService.save_book(book_data, user_id)
 
 @router.get("/userBooks")
 async def list_userBooks(_=Depends(get_current_user)):
@@ -26,3 +27,11 @@ async def catalog(page: int = 1):
 @router.get("/search", summary="Search books by name and optional genre", response_model=List[Book])
 async def search_book(title: str = Query(...), genre:str = Query(None), page:int = Query(1)):
     return BookService.search_books(title, genre, page)
+
+@router.get("/rating")
+async def rating_by_book(id: str = Query(...)):
+    return BookService.rating(id)
+
+@router.get("/genres")
+async def get_genres():
+    return BookService.scrape_genres()
