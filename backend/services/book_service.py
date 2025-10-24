@@ -5,7 +5,6 @@ from api.schemas.books import Book, SaveBook
 from uuid import UUID
 from fastapi.responses import JSONResponse
 from bs4 import BeautifulSoup
- 
 
 class BookService:
     @staticmethod

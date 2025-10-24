@@ -1,20 +1,20 @@
-// src/services/api.ts - ACTUALIZADO
+// src/services/api.ts
 import type { Book } from '../types';
 import { mockBooks } from './mockData';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const USE_MOCK_DATA = true; // Cambiar a false cuando el backend esté listo
+const USE_MOCK_DATA = false; // ✅ Ahora conectado al backend real
 
 export const apiService = {
-    async getBooks(): Promise<Book[]> {
+    // Obtener catálogo general de libros
+    async getBooks(page: number = 1): Promise<Book[]> {
         if (USE_MOCK_DATA) {
-            // Simular delay de red
             await new Promise(resolve => setTimeout(resolve, 1000));
             return mockBooks;
         }
 
         try {
-            const response = await fetch(`${API_URL}/books`);
+            const response = await fetch(`${API_URL}/books/catalog?page=${page}`);
             if (!response.ok) throw new Error('HTTP error ' + response.status);
             return await response.json();
         } catch (error) {
@@ -23,12 +23,11 @@ export const apiService = {
         }
     },
 
-    async searchBooks(query: string): Promise<Book[]> {
+    // Buscar libros por título y opcionalmente por género
+    async searchBooks(query: string, genre?: string, page: number = 1): Promise<Book[]> {
         if (USE_MOCK_DATA) {
             await new Promise(resolve => setTimeout(resolve, 500));
-
-            if (!query.trim()) return mockBooks; // Si está vacío, devolver todos
-
+            if (!query.trim()) return mockBooks;
             const searchTerm = query.toLowerCase();
             return mockBooks.filter(book =>
                 book.title.toLowerCase().includes(searchTerm) ||
@@ -39,15 +38,119 @@ export const apiService = {
         }
 
         try {
-            const response = await fetch(`${API_URL}/books/search?q=${encodeURIComponent(query)}`);
+            let url = `${API_URL}/books/search?title=${encodeURIComponent(query)}&page=${page}`;
+            if (genre) {
+                url += `&genre=${encodeURIComponent(genre)}`;
+            }
+            const response = await fetch(url);
             if (!response.ok) throw new Error('HTTP error ' + response.status);
             return await response.json();
         } catch (error) {
             console.error('Error searching books:', error);
-            return mockBooks.filter(book =>
-                book.title.toLowerCase().includes(query.toLowerCase()) ||
-                book.author.toLowerCase().includes(query.toLowerCase())
-            );
+            return [];
+        }
+    },
+
+    // Obtener géneros disponibles
+    async getGenres(): Promise<string[]> {
+        if (USE_MOCK_DATA) {
+            return ['Fiction', 'Non-Fiction', 'Science Fiction', 'Fantasy', 'Mystery'];
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/books/genres`);
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching genres:', error);
+            return [];
+        }
+    },
+
+    // Obtener rating de un libro
+    async getRating(bookId: string): Promise<any> {
+        if (USE_MOCK_DATA) {
+            return { rating: 4.5, reviews: 120 };
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/books/rating?id=${encodeURIComponent(bookId)}`);
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching rating:', error);
+            return null;
+        }
+    },
+
+    // Guardar libro favorito (requiere autenticación)
+    async saveBook(bookData: any, token: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_URL}/books/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(bookData)
+            });
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            return await response.json();
+        } catch (error) {
+            console.error('Error saving book:', error);
+            throw error;
+        }
+    },
+
+    // Obtener libros favoritos del usuario (requiere autenticación)
+    async getFavorites(token: string): Promise<Book[]> {
+        try {
+            const response = await fetch(`${API_URL}/books/get_favorites`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching favorites:', error);
+            return [];
+        }
+    },
+
+    // Autenticación - Registro
+    async register(email: string, password: string, username?: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password, username })
+            });
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            return await response.json();
+        } catch (error) {
+            console.error('Error registering:', error);
+            throw error;
+        }
+    },
+
+    // Autenticación - Login
+    async login(email: string, password: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            return await response.json();
+        } catch (error) {
+            console.error('Error logging in:', error);
+            throw error;
         }
     }
 };
