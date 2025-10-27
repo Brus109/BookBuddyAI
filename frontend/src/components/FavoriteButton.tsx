@@ -11,20 +11,33 @@ export function FavoriteButton({ book }: FavoriteButtonProps) {
 
     useEffect(() => {
         const favorites = JSON.parse(localStorage.getItem('bookbuddy-favorites') || '[]');
-        setIsFavorite(favorites.some((fav: Book) => fav.id === book.id));
-    }, [book.id]);
+        setIsFavorite(favorites.some((fav: any) => fav.book_id === book.workId || fav.workId === book.workId));
+    }, [book.workId]);
 
     const toggleFavorite = (e: React.MouseEvent) => {
-        e.stopPropagation(); // ✅ Prevenir que se abra el modal
+        e.stopPropagation();
+
+        if (!book.workId) {
+            console.error('Book must have workId to be saved');
+            return;
+        }
 
         const favorites = JSON.parse(localStorage.getItem('bookbuddy-favorites') || '[]');
 
         if (isFavorite) {
-            const updated = favorites.filter((fav: Book) => fav.id !== book.id);
+            const updated = favorites.filter((fav: any) => 
+                fav.book_id !== book.workId && fav.workId !== book.workId
+            );
             localStorage.setItem('bookbuddy-favorites', JSON.stringify(updated));
             setIsFavorite(false);
         } else {
-            const updated = [...favorites, book];
+            // Guardar en formato compatible con backend
+            const saveData = {
+                book_id: book.workId,
+                status: 'want_to_read',
+                ...book // Mantener datos del libro para visualización
+            };
+            const updated = [...favorites, saveData];
             localStorage.setItem('bookbuddy-favorites', JSON.stringify(updated));
             setIsFavorite(true);
         }

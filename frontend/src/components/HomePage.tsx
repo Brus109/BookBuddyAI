@@ -1,16 +1,20 @@
-// src/components/HomePage.tsx - CORREGIDO
+// src/components/HomePage.tsx - Con autenticación
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { BookList } from './BookList';
 import { SearchBar } from './SearchBar';
 import { BookFilters } from './BookFilters';
+import { AuthModal } from './AuthModal';
 import type { Book } from '../types';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
   const [searchResults, setSearchResults] = useState<Book[]>([]);
   const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
-  const [hasSearch, setHasSearch] = useState(false); // ✅ Nuevo estado para controlar búsqueda
+  const [hasSearch, setHasSearch] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const navigateTo = useCallback((path: string) => {
     try {
@@ -37,6 +41,17 @@ export function HomePage() {
     navigateTo('/favorites');
   };
 
+  const handleAuthClick = () => {
+    if (isAuthenticated) {
+      const confirmed = window.confirm('¿Deseas cerrar sesión?');
+      if (confirmed) {
+        logout();
+      }
+    } else {
+      setShowAuthModal(true);
+    }
+  };
+
   // ✅ Determinar qué libros mostrar
   const booksToShow = hasSearch ? filteredBooks : (filteredBooks.length > 0 ? filteredBooks : undefined);
 
@@ -49,11 +64,26 @@ export function HomePage() {
         </div>
         
         <nav className="header-nav">
+          {isAuthenticated && user && (
+            <div className="user-info">
+              <span className="user-greeting">👋 Hola, {user.name}</span>
+            </div>
+          )}
+          
           <button className="nav-btn" onClick={goToFavorites}>
             ❤️ Favoritos
           </button>
+          
+          <button className="nav-btn" onClick={handleAuthClick}>
+            {isAuthenticated ? '🚪 Cerrar Sesión' : '🔑 Iniciar Sesión'}
+          </button>
         </nav>
       </header>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
 
       <SearchBar onSearchResults={handleSearchResults} />
       
