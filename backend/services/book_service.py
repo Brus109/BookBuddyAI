@@ -112,3 +112,11 @@ class BookService:
                         })
 
         return genres
+    
+    def delete_book(user_id: UUID, book_id: str):
+        response = supabase.table("user_books").delete().eq("user_id", user_id).eq("book_id", book_id).execute()
+
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Book not found or already delete")
+        
+        return {"message":"Book delete successfully"}

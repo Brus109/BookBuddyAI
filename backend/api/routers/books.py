@@ -7,14 +7,19 @@ from ..schemas.books import Book, SaveBook
 router = APIRouter(prefix="/books", tags=["Books"])
 
 @router.get("/get_favorites", response_model = List[SaveBook])
-async def list_books(user=Depends(get_current_user)):
-    user_id = user.id
+async def list_books():
+    user_id = "58ea9613-bb71-4fe7-915f-94f4ca460869"
     return BookService.get_all_books(user_id)
 
 @router.post("/save")
 async def add_book(book_data: SaveBook, user=Depends(get_current_user)):
     user_id = user.id
     return BookService.save_book(book_data, user_id)
+
+@router.delete("/delete_book/{book_id}")
+async def delete_book(book_id: str):
+    user_id = "58ea9613-bb71-4fe7-915f-94f4ca460869"
+    return BookService.delete_book(user_id, book_id)
 
 @router.get("/userBooks")
 async def list_userBooks(_=Depends(get_current_user)):
