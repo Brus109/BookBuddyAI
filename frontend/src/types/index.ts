@@ -1,14 +1,14 @@
-// src/types/index.ts - MANTENER TU ESTRUCTURA + AGREGAR RESEÑAS
+// src/types/index.ts - Tipos sincronizados con backend
 export interface Book {
-  id: number;
+  workId?: string;        // ID del libro en OpenLibrary
   title: string;
-  author: string;
-  description?: string;
-  cover_url?: string;
+  author?: string;        // Opcional según backend
+  year?: number;          // Año de publicación
+  cover?: string;         // URL de portada
   genre?: string;
-  published_date?: string;
-  rating?: number;        // ✅ Rating promedio del libro
-  reviews?: number;       // ✅ Cantidad total de reseñas
+  description?: string;
+  rating?: number;        // Rating promedio del libro
+  reviews?: number;       // Cantidad total de reseñas
 }
 
 export interface User {
@@ -17,15 +17,23 @@ export interface User {
   name?: string;
 }
 
-// ✅ NUEVOS TIPOS PARA RESEÑAS
+// Tipos para reseñas y favoritos
 export interface Review {
   id: string;
-  bookId: number;        // ✅ Relación con tu Book.id (number)
+  bookId: string;        // workId del libro
   userId: string;
   userName: string;
-  rating: number;        // ✅ Rating individual de esta reseña (1-5)
+  rating: number;        // Rating individual (1-5)
   comment: string;
   date: string;
+}
+
+// Tipo para guardar favoritos (backend schema)
+export interface SaveBook {
+  book_id: string;       // workId del libro
+  status?: string;       // Estado: "reading", "completed", "want_to_read"
+  rating?: number;       // Rating del usuario (1-5)
+  review?: string;       // Reseña del usuario
 }
 
 export interface BookWithReviews extends Book {

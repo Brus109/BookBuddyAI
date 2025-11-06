@@ -50,7 +50,11 @@ export function BookList({ books }: BookListProps) {
     loadBooks();
   }, [books]);
 
-  const handleBookClick = (bookId: number) => {
+  const handleBookClick = (bookId: string) => {
+    if (!bookId) {
+      console.error('⚠️ No se puede navegar sin workId');
+      return;
+    }
     console.log('📖 Botón Ver Detalles clickeado - Libro:', bookId);
     navigateTo(`/book/${bookId}`);
   };
@@ -67,7 +71,7 @@ export function BookList({ books }: BookListProps) {
           <p className="empty-state">No se encontraron libros</p>
         ) : (
           internalBooks.map(book => (
-            <div key={book.id} className="book-card">
+            <div key={book.workId || book.title} className="book-card">
               <div className="book-card-header">
                 <div onClick={(e) => e.stopPropagation()}>
                   <FavoriteButton book={book} />
@@ -92,10 +96,10 @@ export function BookList({ books }: BookListProps) {
                 <p className="description">{book.description.substring(0, 120)}...</p>
               )}
               
-              {/* ✅ BOTÓN CORREGIDO - book está definido dentro del map */}
+              {/* Botón para ver detalles */}
               <button 
                 className="view-details-btn"
-                onClick={() => handleBookClick(book.id)}
+                onClick={() => handleBookClick(book.workId || '')}
               >
                 📖 Ver detalles completos
               </button>

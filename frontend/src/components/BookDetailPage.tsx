@@ -1,10 +1,12 @@
-// src/components/BookDetailPage.tsx
+// src/components/BookDetailPage.tsx - Con autenticación
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { useReviews } from '../hooks/useReviews';
 import { ReviewForm } from './ReviewForm';
 import { ReviewList } from './ReviewList';
+import { AuthModal } from './AuthModal';
 import type { Book } from '../types';
 import { FavoriteButton } from './FavoriteButton';
 
@@ -64,13 +66,16 @@ const styles = {
     },
 };
 
-// 🔹 Header
+// Header con autenticación
 interface HeaderProps {
     onHomeClick: () => void;
     onFavoritesClick: () => void;
+    onAuthClick: () => void;
+    user: any;
+    isAuthenticated: boolean;
 }
 
-function Header({ onHomeClick, onFavoritesClick }: HeaderProps) {
+function Header({ onHomeClick, onFavoritesClick, onAuthClick, user, isAuthenticated }: HeaderProps) {
     return (
         <header className="app-header">
             <div className="header-content" onClick={onHomeClick}>
@@ -78,8 +83,18 @@ function Header({ onHomeClick, onFavoritesClick }: HeaderProps) {
                 <p>Descubre tu próximo libro favorito con inteligencia artificial</p>
             </div>
             <nav className="header-nav">
+                {isAuthenticated && user && (
+                    <div className="user-info">
+                        <span className="user-greeting">👋 Hola, {user.name}</span>
+                    </div>
+                )}
+                
                 <button className="nav-btn" onClick={onFavoritesClick}>
                     ❤️ Favoritos
+                </button>
+                
+                <button className="nav-btn" onClick={onAuthClick}>
+                    {isAuthenticated ? '🚪 Cerrar Sesión' : '🔑 Iniciar Sesión'}
                 </button>
             </nav>
         </header>
@@ -89,7 +104,7 @@ function Header({ onHomeClick, onFavoritesClick }: HeaderProps) {
 // ✅ Componente SimilarBooks (una sola vez)
 interface SimilarBooksProps {
     books: Book[];
-    onBookClick: (bookId: number) => void;
+    onBookClick: (bookId: string) => void;
 }
 
 function SimilarBooks({ books, onBookClick }: SimilarBooksProps) {
@@ -119,7 +134,7 @@ function SimilarBooks({ books, onBookClick }: SimilarBooksProps) {
             }}>
                 {books.map(book => (
                     <div
-                        key={book.id}
+                        key={book.workId || book.title}
                         style={{
                             background: 'white',
                             padding: '20px',
@@ -129,7 +144,7 @@ function SimilarBooks({ books, onBookClick }: SimilarBooksProps) {
                             transition: 'all 0.3s',
                             border: '2px solid transparent'
                         }}
-                        onClick={() => onBookClick(book.id)}
+                        onClick={() => book.workId && onBookClick(book.workId)}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'translateY(-5px)';
                             e.currentTarget.style.borderColor = '#667eea';
@@ -140,9 +155,9 @@ function SimilarBooks({ books, onBookClick }: SimilarBooksProps) {
                         }}
                     >
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '15px', marginBottom: '12px' }}>
-                            {book.cover_url ? (
+                            {book.cover ? (
                                 <img
-                                    src={book.cover_url}
+                                    src={book.cover}
                                     alt={book.title}
                                     style={{
                                         width: '60px',
@@ -224,14 +239,16 @@ function SimilarBooks({ books, onBookClick }: SimilarBooksProps) {
 export function BookDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user, isAuthenticated, logout } = useAuth();
     const [book, setBook] = useState<Book | null>(null);
     const [loading, setLoading] = useState(true);
     const [similarBooks, setSimilarBooks] = useState<Book[]>([]);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     const { getBookReviews, addReview, getBookAverageRating, getBookReviewCount } = useReviews();
-    const bookReviews = book ? getBookReviews(book.id) : [];
-    const realRating = book ? getBookAverageRating(book.id) : 0;
-    const realReviewCount = book ? getBookReviewCount(book.id) : 0;
+    const bookReviews = book && book.workId ? getBookReviews(book.workId) : [];
+    const realRating = book && book.workId ? getBookAverageRating(book.workId) : 0;
+    const realReviewCount = book && book.workId ? getBookReviewCount(book.workId) : 0;
 
     useEffect(() => {
         const loadBookData = async () => {
@@ -243,13 +260,13 @@ export function BookDetailPage() {
             try {
                 setLoading(true);
                 const books = await apiService.getBooks();
-                const foundBook = books.find(b => b.id === parseInt(id));
+                const foundBook = books.find(b => b.workId === id);
                 setBook(foundBook || null);
 
                 // Cargar libros similares
                 if (foundBook) {
                     const filtered = books.filter(
-                        b => b.genre === foundBook.genre && b.id !== foundBook.id
+                        b => b.genre === foundBook.genre && b.workId !== foundBook.workId
                     );
                     setSimilarBooks(filtered);
                 }
@@ -265,18 +282,36 @@ export function BookDetailPage() {
     }, [id]);
 
     const handleReviewSubmitted = (reviewData: { userName: string; rating: number; comment: string }) => {
-        if (!book) return;
-        addReview(book.id, reviewData.userName, reviewData.rating, reviewData.comment);
+        if (!book || !book.workId) return;
+        addReview(book.workId, reviewData.userName, reviewData.rating, reviewData.comment);
     };
 
     const handleBack = () => navigate(-1);
     const goToHome = () => navigate('/');
     const goToFavorites = () => navigate('/favorites');
+    
+    const handleAuthClick = () => {
+        if (isAuthenticated) {
+            const confirmed = window.confirm('¿Deseas cerrar sesión?');
+            if (confirmed) {
+                logout();
+            }
+        } else {
+            setShowAuthModal(true);
+        }
+    };
 
     if (loading) {
         return (
             <div className="app">
-                <Header onHomeClick={goToHome} onFavoritesClick={goToFavorites} />
+                <Header 
+                    onHomeClick={goToHome} 
+                    onFavoritesClick={goToFavorites}
+                    onAuthClick={handleAuthClick}
+                    user={user}
+                    isAuthenticated={isAuthenticated}
+                />
+                <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
                 <div className="loading-container">
                     <div className="loading-spinner"></div>
                     <p>Cargando libro...</p>
@@ -288,7 +323,14 @@ export function BookDetailPage() {
     if (!book) {
         return (
             <div className="app">
-                <Header onHomeClick={goToHome} onFavoritesClick={goToFavorites} />
+                <Header 
+                    onHomeClick={goToHome} 
+                    onFavoritesClick={goToFavorites}
+                    onAuthClick={handleAuthClick}
+                    user={user}
+                    isAuthenticated={isAuthenticated}
+                />
+                <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
                 <div className="error-container">
                     <div className="error-icon">📚</div>
                     <h2>Libro no encontrado</h2>
@@ -303,7 +345,14 @@ export function BookDetailPage() {
 
     return (
         <div className="app">
-            <Header onHomeClick={goToHome} onFavoritesClick={goToFavorites} />
+            <Header 
+                onHomeClick={goToHome} 
+                onFavoritesClick={goToFavorites}
+                onAuthClick={handleAuthClick}
+                user={user}
+                isAuthenticated={isAuthenticated}
+            />
+            <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
 
             <div style={styles.page}>
                 <button onClick={handleBack} style={styles.backButton}>
@@ -324,8 +373,8 @@ export function BookDetailPage() {
                                     {book.genre && (
                                         <span className="chip blue-chip animate-chip">🏷️ {book.genre}</span>
                                     )}
-                                    {book.published_date && (
-                                        <span className="chip orange-chip animate-chip">📅 {book.published_date}</span>
+                                    {book.year && (
+                                        <span className="chip orange-chip animate-chip">📅 {book.year}</span>
                                     )}
                                     {realReviewCount > 0 && (
                                         <span className="chip green-chip animate-chip">
@@ -342,8 +391,8 @@ export function BookDetailPage() {
                         {/* Portada */}
                         <div style={{ textAlign: 'center' }}>
                             <div className="cover-box">
-                                {book.cover_url ? (
-                                    <img src={book.cover_url} alt={`Portada de ${book.title}`} className="book-cover" />
+                                {book.cover ? (
+                                    <img src={book.cover} alt={`Portada de ${book.title}`} className="book-cover" />
                                 ) : (
                                     <div className="cover-placeholder">
                                         📖
@@ -366,7 +415,7 @@ export function BookDetailPage() {
                                     <div>📌 <span>Título:</span> {book.title}</div>
                                     <div>✍️ <span>Autor:</span> {book.author}</div>
                                     {book.genre && <div>📚 <span>Género:</span> {book.genre}</div>}
-                                    {book.published_date && <div>📅 <span>Año:</span> {book.published_date}</div>}
+                                    {book.year && <div>📅 <span>Año:</span> {book.year}</div>}
                                 </div>
                             </div>
 

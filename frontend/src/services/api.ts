@@ -1,5 +1,5 @@
 // src/services/api.ts
-import type { Book } from '../types';
+import type { Book, SaveBook } from '../types';
 import { mockBooks } from './mockData';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -84,7 +84,7 @@ export const apiService = {
     },
 
     // Guardar libro favorito (requiere autenticación)
-    async saveBook(bookData: any, token: string): Promise<any> {
+    async saveBook(bookData: SaveBook, token: string): Promise<any> {
         try {
             const response = await fetch(`${API_URL}/books/save`, {
                 method: 'POST',
@@ -94,7 +94,10 @@ export const apiService = {
                 },
                 body: JSON.stringify(bookData)
             });
-            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Error al guardar libro');
+            }
             return await response.json();
         } catch (error) {
             console.error('Error saving book:', error);
@@ -103,14 +106,17 @@ export const apiService = {
     },
 
     // Obtener libros favoritos del usuario (requiere autenticación)
-    async getFavorites(token: string): Promise<Book[]> {
+    async getFavorites(token: string): Promise<SaveBook[]> {
         try {
             const response = await fetch(`${API_URL}/books/get_favorites`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Error al obtener favoritos');
+            }
             return await response.json();
         } catch (error) {
             console.error('Error fetching favorites:', error);
@@ -119,16 +125,19 @@ export const apiService = {
     },
 
     // Autenticación - Registro
-    async register(email: string, password: string, username?: string): Promise<any> {
+    async register(email: string, password: string, full_name: string, preferences: Record<string, any> = {}): Promise<any> {
         try {
             const response = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password, username })
+                body: JSON.stringify({ email, password, full_name, preferences })
             });
-            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Error en registro');
+            }
             return await response.json();
         } catch (error) {
             console.error('Error registering:', error);
@@ -137,7 +146,7 @@ export const apiService = {
     },
 
     // Autenticación - Login
-    async login(email: string, password: string): Promise<any> {
+    async login(email: string, password: string): Promise<{ token: string }> {
         try {
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
@@ -146,7 +155,10 @@ export const apiService = {
                 },
                 body: JSON.stringify({ email, password })
             });
-            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Credenciales inválidas');
+            }
             return await response.json();
         } catch (error) {
             console.error('Error logging in:', error);
